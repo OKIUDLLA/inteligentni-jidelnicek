@@ -1,0 +1,66 @@
+---
+
+## 3. `scripts/calc_nutri_price.py` (skeleton)
+
+```python
+#!/usr/bin/env python3
+"""
+calc_nutri_price.py
+~~~~~~~~~~~~~~~~~~~
+Propojí data receptů s nutričními tabulkami a cenami Rohlík.cz.
+
+Použití:
+$ python scripts/calc_nutri_price.py data/raw/batch_01.json > data/processed/batch_01_enriched.json
+"""
+
+import json
+from pathlib import Path
+from typing import Dict, List
+
+# --- Konfigurace (URL API, cesty k CSV) -------------------------------------
+
+USDA_API_KEY = "CHANGE_ME"
+ROHLIK_PRICE_CACHE = Path("data/rohlik_prices.csv")
+
+# --- Pomocné funkce ----------------------------------------------------------
+
+def get_nutrients(ingredient_name: str, amount_g: float) -> Dict[str, float]:
+    """Vrátí živiny pro dané množství suroviny (kcal, protein, carbs, fat, fiber, salt)."""
+    # TODO: doplnit volání API či lokální lookup
+    return {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0, "salt": 0}
+
+def get_price(ingredient_name: str, amount_g: float) -> float:
+    """Vrátí orientační cenu v Kč za zadané množství."""
+    # TODO: doplnit scrape/cache Rohlík
+    return 0.0
+
+# --- Hlavní logika -----------------------------------------------------------
+
+def enrich_recipe(recipe: Dict) -> Dict:
+    """Spočítá živiny a cenu pro celý recept."""
+    totals = {"kcal": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0, "salt": 0, "cost": 0}
+    for ing in recipe["ingredients"]:
+        nutri = get_nutrients(ing["item"], ing["amount"])
+        price = get_price(ing["item"], ing["amount"])
+        for k in totals:
+            if k == "cost":
+                continue
+            totals[k] += nutri[k]
+        totals["cost"] += price
+        # rozšíříme položku suroviny o detailní info
+        ing["nutrients"] = nutri
+        ing["used_price"] = price
+    recipe["nutrition"] = totals
+    recipe["total_cost"] = totals["cost"]
+    return recipe
+
+def main(input_path: Path) -> None:
+    data: List[Dict] = json.loads(input_path.read_text(encoding="utf-8"))
+    enriched = [enrich_recipe(r) for r in data]
+    print(json.dumps(enriched, ensure_ascii=False, indent=2))
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) != 2:
+        sys.exit("Usage: python calc_nutri_price.py <input_json>")
+    main(Path(sys.argv[1]))
